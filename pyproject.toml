@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ivi-bus-autotest-capl"
+version = "0.1.0"
+description = "智能座舱总线自动化测试工具包 — 将 CANoe/CAPL 能力桥接进 pytest CI 体系"
+readme = "README.md"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "python-can>=4.0",
+    "cantools>=39.0",
+    "udsoncan>=1.27",
+    "can-isotp>=2.0",
+    "pytest>=7.4",
+    "allure-pytest>=2.13",
+]
+
+[project.urls]
+"Repository" = "https://github.com/yourusername/ivi-bus-autotest-capl"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: 长时间运行的稳定性测试",
+    "need_hardware: 需要 CANoe 硬件/授权的测试",
+]
+addopts = "-v --tb=short --strict-markers"
