@@ -1,0 +1,54 @@
+VERSION ""
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	BA_DEF_DEF_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SGTYPE_VAL_
+	BU_SGTYPE_
+	BU_BO_REL_
+	BU_SG_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: IVI_ECU BodyCtrl DiagTester Vector__XXX
+
+BO_ 672 IVI_Status: 8 IVI_ECU
+ SG_ ScreenState : 0|2@1+ (1,0) [0|3] "" BodyCtrl,DiagTester
+ SG_ AudioVolume : 8|8@1+ (1,0) [0|100] "%" BodyCtrl,DiagTester
+ SG_ OverspeedWarning : 16|1@1+ (1,0) [0|1] "" BodyCtrl
+ SG_ Reserved_IVI : 17|7@1+ (1,0) [0|127] "" Vector__XXX
+
+BO_ 417 VehicleSpeed: 8 BodyCtrl
+ SG_ Speed : 0|16@1+ (0.1,0) [0|300] "km/h" IVI_ECU,DiagTester
+
+BO_ 2016 DiagReq: 8 DiagTester
+ SG_ DiagService : 0|8@1+ (1,0) [0|255] "" IVI_ECU
+ SG_ DiagParam1 : 8|8@1+ (1,0) [0|255] "" IVI_ECU
+ SG_ DiagParam2 : 16|8@1+ (1,0) [0|255] "" IVI_ECU
+
+BO_ 2024 DiagResp: 8 IVI_ECU
+ SG_ DiagResponseService : 0|8@1+ (1,0) [0|255] "" DiagTester
+ SG_ DiagData1 : 8|8@1+ (1,0) [0|255] "" DiagTester
+ SG_ DiagData2 : 16|8@1+ (1,0) [0|255] "" DiagTester
+ SG_ DiagData3 : 24|8@1+ (1,0) [0|255] "" DiagTester
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 10000;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 672 100;
+BA_ "GenMsgCycleTime" BO_ 417 50;
+
+CM_ BO_ 672 "智能座舱状态报文，100ms 周期";
+CM_ BO_ 417 "车身车速报文，50ms 周期";
+CM_ BO_ 2016 "UDS 诊断请求（0x7E0）";
+CM_ BO_ 2024 "UDS 诊断响应（0x7E8）";
+CM_ SG_ 672 ScreenState "0=Off,1=Home,2=Navi,3=Media";
+CM_ SG_ 672 AudioVolume "0-100 音量百分比";
+
+VAL_ 672 ScreenState 0 "Off" 1 "Home" 2 "Navi" 3 "Media" ;
