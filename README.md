@@ -57,9 +57,21 @@ BUS_BACKEND=socketcan pytest tests/ -v --tb=short
    sudo ip link add dev vcan0 type vcan
    sudo ip link set up vcan0
    pytest tests/ -v --tb=short --bus-backend=socketcan
+c.单独运行慢速测试：
+  pytest tests/test_periodic_msg.py::test_long_running_period_stability --bus-backend=virtual -m slow
 4.生成 Allure 报告
 pytest tests/ --alluredir=results
 allure serve results
+### 异常处理
+1.Allure 命令不存在
+a.当前电脑没有安装Allure CLI和Java时，在PowerShell 中执行：
+  winget install EclipseAdoptium.Temurin.17.JDK
+  winget install allure.allure
+b.重启 VS Code 后检查：
+  java -version
+  allure --version
+c.然后生成并查看报告：
+  pytest tests/ --bus-backend=virtual --alluredir=results allure serve results
 
 ### 预期输出
 tests/test_periodic_msg.py::test_ivi_status_period_within_tolerance ✓
