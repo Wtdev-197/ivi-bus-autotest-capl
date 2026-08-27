@@ -49,7 +49,15 @@ bash
 pytest tests/ -v --tb=short
 2.指定后端
 BUS_BACKEND=socketcan pytest tests/ -v --tb=short
-3.生成 Allure 报告
+3.推荐运行方式
+ a.Windows、本地开发及 GitHub Actions：
+   pytest tests/ -v --tb=short --bus-backend=virtual
+ b.Linux + SocketCAN：
+   sudo modprobe vcan
+   sudo ip link add dev vcan0 type vcan
+   sudo ip link set up vcan0
+   pytest tests/ -v --tb=short --bus-backend=socketcan
+4.生成 Allure 报告
 pytest tests/ --alluredir=results
 allure serve results
 

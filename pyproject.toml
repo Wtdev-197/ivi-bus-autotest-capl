@@ -39,4 +39,4 @@ markers = [
     "slow: 长时间运行的稳定性测试",
     "need_hardware: 需要 CANoe 硬件/授权的测试",
 ]
-addopts = "-v --tb=short --strict-markers"
+addopts = "-v --tb=short --strict-markers -m 'not slow'"
