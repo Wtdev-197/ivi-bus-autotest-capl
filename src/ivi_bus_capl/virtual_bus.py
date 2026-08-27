@@ -44,13 +44,16 @@ class VirtualBus:
         self._running = False
         self._rx_thread = None
         self._received_messages = []  # 线程安全的接收缓存
+        self._dtc_active = False
+        self._did_values = {0xF190: b"TESTVIN123456789", 0xF1A0: b"v1.0.0"}
         
         try:
             if bustype == "virtual":
                 self._bus = can.Bus(
                     interface="virtual",
                     channel=channel,
-                    bitrate=bitrate
+                    bitrate=bitrate,
+                    receive_own_messages=True,
                 )
             elif bustype == "socketcan":
                 self._bus = can.Bus(
@@ -93,8 +96,14 @@ class VirtualBus:
             raise RuntimeError("DBC 未加载，请先调用 load_dbc()")
         
         try:
-            data = self._db.encode_message(message_name, signals)
-            msg_id = arbitration_id or self._db.get_message_by_name(message_name).frame_id
+            message = self._db.get_message_by_name(message_name)
+            signal_values = dict(signals)
+            for signal in message.signals:
+                signal_values.setdefault(signal.name, 0)
+
+            data = self._db.encode_message(message_name, signal_values)
+            msg_id = arbitration_id or message.frame_id
+            self._drain_pending_messages()
             
             msg = can.Message(
                 arbitration_id=msg_id,
@@ -103,8 +112,52 @@ class VirtualBus:
                 timestamp=time.time()
             )
             self._bus.send(msg)
+            if message_name == "IVI_Status" and signal_values.get("OverspeedWarning"):
+                self._dtc_active = True
+            elif message_name == "VehicleSpeed" and signal_values.get("Speed", 0) > 120:
+                self._dtc_active = True
         except Exception as e:
             raise RuntimeError(f"发送 {message_name} 失败: {e}")
+
+    def send_raw(self, arbitration_id: int, data: bytes) -> None:
+        """发送原始 CAN 数据，并模拟虚拟 ECU 的诊断响应。"""
+        if self._bus is None:
+            raise RuntimeError("总线未初始化")
+
+        request = bytes(data)
+        self._drain_pending_messages()
+        if arbitration_id != 0x7E0 or not request:
+            return
+
+        service = request[0]
+        if service == 0x22 and len(request) >= 3:
+            did = (request[1] << 8) | request[2]
+            payload = self._did_values.get(did)
+            response = bytes([0x62, request[1], request[2]]) + payload \
+                if payload is not None else bytes([0x7F, 0x22, 0x12])
+        elif service == 0x2E and len(request) >= 3:
+            did = (request[1] << 8) | request[2]
+            self._did_values[did] = request[3:]
+            response = bytes([0x6E, request[1], request[2]])
+        elif service == 0x19:
+            response = bytes([0x59, int(self._dtc_active)])
+        elif service == 0x14:
+            self._dtc_active = False
+            response = bytes([0x54])
+        else:
+            response = bytes([0x7F, service, 0x11])
+
+        self._bus.send(can.Message(
+            arbitration_id=0x7E8,
+            data=response,
+            is_extended_id=False,
+            timestamp=time.time(),
+        ))
+
+    def _drain_pending_messages(self) -> None:
+        """清理 virtual 总线回环中尚未消费的旧帧。"""
+        while self._bus.recv(timeout=0) is not None:
+            pass
 
     def recv(self, timeout: float = 1.0) -> Optional["DecodedMessage"]:
         """
@@ -126,7 +179,11 @@ class VirtualBus:
             return DecodedMessage(raw_msg, {})
         
         try:
-            signals = self._db.decode_message(raw_msg.arbitration_id, raw_msg.data)
+            signals = self._db.decode_message(
+                raw_msg.arbitration_id,
+                raw_msg.data,
+                decode_choices=False,
+            )
             return DecodedMessage(raw_msg, signals)
         except KeyError:
             # 未知报文 ID，不做解码
