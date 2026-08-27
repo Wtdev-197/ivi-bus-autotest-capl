@@ -1,0 +1,48 @@
+/*!
+ * \file   02_signal_range.can
+ * \brief  IVI_Status 信号值范围监控
+ *
+ * 功能描述：
+ *   监控 IVI_Status 中各信号值是否在有效范围内。
+ *   - ScreenState: 0~3
+ *   - AudioVolume: 0~100
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: test_periodic_msg.py::test_ivi_status_signals_valid_range
+ */
+
+variables
+{
+    int gViolationCount = 0;
+}
+
+on message IVI_Status
+{
+    /* 检查 ScreenState 范围 */
+    if (this.ScreenState < 0 || this.ScreenState > 3)
+    {
+        write("[FAIL] ScreenState 越界: %d (允许 0-3)", this.ScreenState);
+        TestStepFail("ScreenState 越界", "值: %d", this.ScreenState);
+        gViolationCount++;
+    }
+
+    /* 检查 AudioVolume 范围 */
+    if (this.AudioVolume < 0 || this.AudioVolume > 100)
+    {
+        write("[FAIL] AudioVolume 越界: %d (允许 0-100)", this.AudioVolume);
+        TestStepFail("AudioVolume 越界", "值: %d", this.AudioVolume);
+        gViolationCount++;
+    }
+}
+
+on preStop
+{
+    if (gViolationCount > 0)
+    {
+        write("结果: FAIL (%d 次越界)", gViolationCount);
+    }
+    else
+    {
+        write("结果: PASS (所有信号值合规)");
+    }
+}

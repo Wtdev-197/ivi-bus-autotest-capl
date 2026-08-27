@@ -1,0 +1,79 @@
+/*!
+ * \file   07_multinode_sim.can
+ * \brief  多节点仿真测试
+ *
+ * 功能描述：
+ *   模拟多个 ECU 节点的总线通信。
+ *   节点列表：
+ *   - IVI_ECU: 发送 IVI_Status (100ms)
+ *   - BodyCtrl: 发送 VehicleSpeed (50ms)
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: 待扩展
+ */
+
+variables
+{
+    /* IVI_ECU 状态 */
+    msTimer tIVI;
+    int gScreenState = 1;
+    int gAudioVolume = 35;
+
+    /* BodyCtrl 状态 */
+    msTimer tBody;
+    float gVehicleSpeed = 0.0;
+}
+
+on start
+{
+    /* 启动定时器 */
+    setTimer(tIVI, 100);
+    setTimer(tBody, 50);
+
+    write("多节点仿真启动: IVI_ECU(100ms) + BodyCtrl(50ms)");
+}
+
+on timer tIVI
+{
+    /* IVI_ECU 发送 IVI_Status */
+    IVI_Status.ScreenState = gScreenState;
+    IVI_Status.AudioVolume = gAudioVolume;
+    IVI_Status.OverspeedWarning = 0;
+    output(IVI_Status);
+
+    setTimer(tIVI, 100);
+}
+
+on timer tBody
+{
+    /* BodyCtrl 发送 VehicleSpeed */
+    VehicleSpeed.Speed = gVehicleSpeed;
+    output(VehicleSpeed);
+
+    setTimer(tBody, 50);
+}
+
+/* 键盘控制 */
+on key '+'
+{
+    gAudioVolume = min(gAudioVolume + 5, 100);
+    write("音量: %d%%", gAudioVolume);
+}
+
+on key '-'
+{
+    gAudioVolume = max(gAudioVolume - 5, 0);
+    write("音量: %d%%", gAudioVolume);
+}
+
+on key 's'
+{
+    gVehicleSpeed += 10.0;
+    write("车速: %.1f km/h", gVehicleSpeed);
+}
+
+on key 'x'
+{
+    gVehicleSpeed = max(gVehicleSpeed - 10.0, 0.0);
+    write("车速: %.1f km/h", gVehicleSpeed);
+}

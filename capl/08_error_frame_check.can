@@ -1,0 +1,56 @@
+/*!
+ * \file   08_error_frame_check.can
+ * \brief  错误帧监控
+ *
+ * 功能描述：
+ *   监控 CAN 总线上的错误帧，并在检测到时记录和报警。
+ *   使用 ChkStart_ErrorFrameOccured 进行监控。
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: 待扩展
+ */
+
+variables
+{
+    int gErrorFrameCount = 0;
+}
+
+on start
+{
+    /* 启动错误帧监控 */
+    ChkStart_ErrorFrameOccured();
+
+    write("=== 错误帧监控启动 ===");
+}
+
+on errorFrame
+{
+    gErrorFrameCount++;
+
+    write("[ERROR] 检测到错误帧! (累计: %d)", gErrorFrameCount);
+
+    /* 记录错误帧详情 */
+    write("  时间戳: %d ns", timeNowNS());
+    write("  通道: %d", this.CAN);
+
+    /* 测试断言失败 */
+    if (gErrorFrameCount > 3)
+    {
+        TestStepFail("错误帧过多",
+                     "累计 %d 个错误帧 (阈值: 3)",
+                     gErrorFrameCount);
+    }
+}
+
+on preStop
+{
+    write("\n=== 错误帧监控汇总 ===");
+    write("总计错误帧: %d", gErrorFrameCount);
+
+    if (gErrorFrameCount > 0)
+    {
+        write("结果: FAIL (存在错误帧)");
+    }
+    else
+    {
+        write("结果: PASS (无错误帧)");

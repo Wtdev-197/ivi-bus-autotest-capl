@@ -1,0 +1,86 @@
+/*!
+ * \file   06_dtc_inject_clear.can
+ * \brief  DTC 注入与清除测试 (19/14 服务)
+ *
+ * 功能描述：
+ *   模拟 DTC 置位、读取和清除流程。
+ *   - 19 02: 读取已存储 DTC
+ *   - 14 FF FF FF: 清除所有 DTC
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: test_dtc.py
+ */
+
+variables
+{
+    int gDtcActive = 0;      /* 0=无DTC, 1=DTC已置位 */
+    int gDtcCode = 0x123456; /* 模拟 DTC 码 */
+}
+
+on message DiagReq
+{
+    byte service;
+
+    service = this.DiagService;
+
+    switch (service)
+    {
+        case 0x19:  /* ReadDTCInformation */
+        {
+            byte subFunc = this.DiagParam1;
+
+            if (subFunc == 0x02)  /* reportDTCByStatusMask */
+            {
+                if (gDtcActive)
+                {
+                    /* 返回 DTC: 59 02 + DTC码(3字节) + 状态掩码 */
+                    byte respData[7];
+                    respData[0] = 0x59;
+                    respData[1] = 0x01;  /* 1个DTC */
+                    respData[2] = (byte)(gDtcCode >> 16);
+                    respData[3] = (byte)(gDtcCode >> 8);
+                    respData[4] = (byte)gDtcCode;
+                    respData[5] = 0x01;  /* 状态: testFailed */
+                    respData[6] = 0x00;
+                    output(DiagResp, respData, elcount(respData));
+                    write("19 02 读取 DTC: 0x%06X", gDtcCode);
+                }
+                else
+                {
+                    /* 无 DTC */
+                    byte respData[2];
+                    respData[0] = 0x59;
+                    respData[1] = 0x00;  /* 0个DTC */
+                    output(DiagResp, respData, elcount(respData));
+                    write("19 02 无 DTC");
+                }
+            }
+            break;
+        }
+
+        case 0x14:  /* ClearDiagnosticInformation */
+        {
+            /* 清除所有 DTC */
+            gDtcActive = 0;
+
+            byte respData[1];
+            respData[0] = 0x54;
+            output(DiagResp, respData, elcount(respData));
+            write("14 清除所有 DTC");
+            break;
+        }
+    }
+}
+
+/* 模拟外部触发 DTC 置位 */
+on key 'd'
+{
+    gDtcActive = 1;
+    write("DTC 0x%06X 已置位 (按 'c' 清除)", gDtcCode);
+}
+
+on key 'c'
+{
+    gDtcActive = 0;
+    write("DTC 已清除");
+}

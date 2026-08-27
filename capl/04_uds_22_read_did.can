@@ -1,0 +1,88 @@
+/*!
+ * \file   04_uds_22_read_did.can
+ * \brief  UDS 22 服务 — ReadDataByIdentifier
+ *
+ * 功能描述：
+ *   处理 22 服务请求，根据 DID 返回相应数据。
+ *   支持的 DID：
+ *   - 0xF190: VIN (17字节ASCII)
+ *   - 0xF1A0: 硬件版本 (字符串)
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: test_uds_22_2e.py::test_uds_22_read_vin
+ */
+
+variables
+{
+    /* 模拟的 VIN 和硬件版本 */
+    char gVin[18] = "LSVAU2A38N2100001";
+    char gHwVersion[10] = "v2.1.0";
+}
+
+on message DiagReq
+{
+    byte service;
+    word did;
+
+    service = this.DiagService;
+
+    if (service == 0x22)
+    {
+        did = (this.DiagParam1 << 8) | this.DiagParam2;
+
+        switch (did)
+        {
+            case 0xF190:
+            {
+                /* 返回 VIN: 62 F1 90 + 17字节VIN */
+                byte respData[21];
+                int i;
+
+                respData[0] = 0x62;
+                respData[1] = 0xF1;
+                respData[2] = 0x90;
+
+                for (i = 0; i < 17; i++)
+                {
+                    respData[3 + i] = (byte)gVin[i];
+                }
+
+                output(DiagResp, respData, elcount(respData));
+                write("22 读取 VIN: %s", gVin);
+                break;
+            }
+
+            case 0xF1A0:
+            {
+                /* 返回硬件版本: 62 F1 A0 + 版本字符串 */
+                byte respData[3 + strlen(gHwVersion)];
+                int i;
+
+                respData[0] = 0x62;
+                respData[1] = 0xF1;
+                respData[2] = 0xA0;
+
+                for (i = 0; i < strlen(gHwVersion); i++)
+                {
+                    respData[3 + i] = (byte)gHwVersion[i];
+                }
+
+                output(DiagResp, respData, elcount(respData));
+                write("22 读取硬件版本: %s", gHwVersion);
+                break;
+            }
+
+            default:
+            {
+                /* 不支持 DID → 负响应 7F 22 12 */
+                byte nrcData[3];
+                nrcData[0] = 0x7F;
+                nrcData[1] = 0x22;
+                nrcData[2] = 0x12;  /* SubFunctionNotSupported */
+                output(DiagResp, nrcData, elcount(nrcData));
+                write("22 不支持 DID: 0x%04X", did);
+                break;
+            }
+        }
+    }
+}

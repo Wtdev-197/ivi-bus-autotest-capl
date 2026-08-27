@@ -1,0 +1,69 @@
+/*!
+ * \file   05_uds_2e_write_did.can
+ * \brief  UDS 2E 服务 — WriteDataByIdentifier
+ *
+ * 功能描述：
+ *   处理 2E 服务请求，将数据写入指定 DID。
+ *   支持 DID：
+ *   - 0xF1A0: 硬件版本 (可写)
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: test_uds_22_2e.py::test_uds_2e_write_and_verify
+ */
+
+variables
+{
+    char gHwVersion[10] = "v2.1.0";
+}
+
+on message DiagReq
+{
+    byte service;
+    word did;
+
+    service = this.DiagService;
+
+    if (service == 0x2E)
+    {
+        did = (this.DiagParam1 << 8) | this.DiagParam2;
+
+        switch (did)
+        {
+            case 0xF1A0:
+            {
+                /* 写入硬件版本 */
+                byte dataLen;
+                int i;
+
+                dataLen = this.DLC - 3;  /* 减去 SID + DID(2字节) */
+                for (i = 0; i < dataLen && i < 9; i++)
+                {
+                    gHwVersion[i] = (char)this.byte(i + 3);
+                }
+                gHwVersion[dataLen] = 0;
+
+                /* 正响应: 6E F1 A0 */
+                byte respData[3];
+                respData[0] = 0x6E;
+                respData[1] = 0xF1;
+                respData[2] = 0xA0;
+                output(DiagResp, respData, elcount(respData));
+
+                write("2E 写入硬件版本: %s", gHwVersion);
+                break;
+            }
+
+            default:
+            {
+                /* 不支持 DID → 负响应 7F 2E 12 */
+                byte nrcData[3];
+                nrcData[0] = 0x7F;
+                nrcData[1] = 0x2E;
+                nrcData[2] = 0x12;
+                output(DiagResp, nrcData, elcount(nrcData));
+                write("2E 不支持 DID: 0x%04X", did);
+                break;
+            }
+        }
+    }
+}

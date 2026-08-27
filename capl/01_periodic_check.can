@@ -1,0 +1,119 @@
+/*!
+ * \file   01_periodic_check.can
+ * \brief  IVI_Status 报文周期监控（CAPL 实现）
+ * 
+ * 功能描述：
+ *   监控 0x2A0 (IVI_Status) 的发送周期，要求 100±10ms。
+ *   超出范围则触发 TestStepFail。
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: test_periodic_msg.py::test_ivi_status_period_within_tolerance
+ *
+ * 使用方法（CANoe Test Module 中）：
+ *   1. 加载此 .can 文件
+ *   2. 启动 Measurement
+ *   3. 观察 Test Report 中的周期断言结果
+ */
+
+variables
+{
+    /* 监控参数 */
+    const int EXPECTED_CYCLE_MS = 100;
+    const int TOLERANCE_MS = 10;
+    
+    /* 时间戳记录 */
+    int64 gLastTimestamp = 0;
+    int64 gCurrentTimestamp = 0;
+    int64 gCycleTimeMs = 0;
+    
+    /* 统计 */
+    int gSampleCount = 0;
+    int gPassCount = 0;
+    int gFailCount = 0;
+}
+
+/* 系统启动时初始化 */
+on start
+{
+    write("=== IVI_Status 周期监控开始 ===");
+    write("期望周期: %d ms ± %d ms", EXPECTED_CYCLE_MS, TOLERANCE_MS);
+    
+    /* 注册周期检查函数 */
+    ChkStart_MsgAbsCycleTimeViolation(
+        IVI_Status,                     // 报文 ID (0x2A0)
+        EXPECTED_CYCLE_MS - TOLERANCE_MS,  // 最小间隔 (ms)
+        EXPECTED_CYCLE_MS + TOLERANCE_MS,  // 最大间隔 (ms)
+        chk_assert_level_complete       // 断言级别
+    );
+}
+
+/* 每次接收到 IVI_Status 时触发 */
+on message IVI_Status
+{
+    gCurrentTimestamp = timeNowNS();
+    gSampleCount++;
+    
+    if (gLastTimestamp > 0)
+    {
+        /* 计算实际周期（纳秒 → 毫秒） */
+        gCycleTimeMs = (gCurrentTimestamp - gLastTimestamp) / 1000000;
+        
+        /* 判断是否在容差范围内 */
+        if ((gCycleTimeMs >= (EXPECTED_CYCLE_MS - TOLERANCE_MS)) &&
+            (gCycleTimeMs <= (EXPECTED_CYCLE_MS + TOLERANCE_MS)))
+        {
+            gPassCount++;
+            
+            /* 仅打印异常情况，避免刷屏 */
+            if (gSampleCount <= 5 || gSampleCount % 20 == 0)
+            {
+                write("[OK] 第%d帧 | 周期: %d ms | 信号: ScreenState=%d, AudioVolume=%d",
+                      gSampleCount,
+                      gCycleTimeMs,
+                      this.ScreenState,
+                      this.AudioVolume);
+            }
+        }
+        else
+        {
+            gFailCount++;
+            
+            /* 周期越界 → 测试失败 */
+            write("[FAIL] 第%d帧 | 周期越界: %d ms (允许 %d-%d ms)",
+                  gSampleCount,
+                  gCycleTimeMs,
+                  EXPECTED_CYCLE_MS - TOLERANCE_MS,
+                  EXPECTED_CYCLE_MS + TOLERANCE_MS);
+            
+            TestStepFail("IVI_Status 周期越界",
+                         "期望: %d±%d ms, 实际: %d ms",
+                         EXPECTED_CYCLE_MS,
+                         TOLERANCE_MS,
+                         gCycleTimeMs);
+        }
+    }
+    
+    gLastTimestamp = gCurrentTimestamp;
+}
+
+/* 测试结束时汇总 */
+on preStop
+{
+    write("\n=== IVI_Status 周期监控汇总 ===");
+    write("总采样: %d 帧", gSampleCount);
+    write("通过: %d 帧", gPassCount);
+    write("失败: %d 帧", gFailCount);
+    
+    if (gFailCount > 0)
+    {
+        write("结果: FAIL (存在周期越界)");
+        TestStepFail("周期稳定性检查",
+                     "%d/%d 帧周期越界",
+                     gFailCount,
+                     gSampleCount);
+    }
+    else
+    {
+        write("结果: PASS (所有周期合规)");
+    }
+}

@@ -1,0 +1,59 @@
+/*!
+ * \file   03_uds_session.can
+ * \brief  UDS 会话控制测试 (10 服务)
+ *
+ * 功能描述：
+ *   测试 UDS 10 服务的会话切换：
+ *   - 10 01: DefaultSession
+ *   - 10 02: ProgrammingSession
+ *   - 10 03: ExtendedSession
+ *   - 3E 00: TesterPresent
+ *
+ * 依赖 DBC：vehicle_ivi.dbc
+ * 对应 pytest: 待扩展
+ */
+
+variables
+{
+    int gCurrentSession = 1;  /* 1=Default, 2=Programming, 3=Extended */
+}
+
+on message DiagReq
+{
+    byte service;
+    byte subFunc;
+
+    service = this.DiagService;
+    subFunc = this.DiagParam1;
+
+    switch (service)
+    {
+        case 0x10:  /* DiagnosticSessionControl */
+            switch (subFunc)
+            {
+                case 0x01:
+                    write("切换到 DefaultSession");
+                    gCurrentSession = 1;
+                    break;
+                case 0x02:
+                    write("切换到 ProgrammingSession");
+                    gCurrentSession = 2;
+                    break;
+                case 0x03:
+                    write("切换到 ExtendedSession");
+                    gCurrentSession = 3;
+                    break;
+                default:
+                    write("未知子功能: 0x%02X", subFunc);
+                    break;
+            }
+            break;
+
+        case 0x3E:  /* TesterPresent */
+            write("TesterPresent 保持会话 (Session=%d)", gCurrentSession);
+            break;
+
+        default:
+            break;
+    }
+}
