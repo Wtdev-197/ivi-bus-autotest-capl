@@ -208,7 +208,11 @@ ivi-bus-autotest-capl/
 
 ---
 ## 作者
-- **Wtdev-197** — [GitHub](https://github.com/Wtdev-197) — zhangwt@example.com
+
+&zwnj;**zhangwentao**&zwnj;
+
+- 📧 邮箱: [2669279956@qq.com](mailto:2669279956@qq.com)
+- 🌐 GitHub: https://github.com/Wtdev-197
 ---
 
 ## 致谢
