@@ -21,7 +21,7 @@ requires-python = ">=3.10"
 dependencies = [
     "python-can>=4.0",
     "cantools>=39.0",
-    "udsoncan>=1.27",
+    "udsoncan>=1.26.1",
     "can-isotp>=2.0",
     "pytest>=7.4",
     "allure-pytest>=2.13",
